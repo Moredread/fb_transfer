@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+"""
+Fritz!Box transfer speed monitor
+
+Usage:
+    fb_transfer.py [--host=<host>] [--port=<port>]
+
+Options:
+    -h --help       This help message.
+    --version       Show version.
+    --host=<host>   IP or hostname of the Fritz!Box [default: fritz.box]
+    --port=<port>   Port of the SOAP service [default: 49000]
+"""
+
 from __future__ import print_function
 
 from SOAPpy import SOAPProxy
@@ -7,6 +20,7 @@ import time
 import sys
 import collections
 
+from docopt import docopt
 
 TrafficInfo = collections.namedtuple('TrafficInfo', [
     'total_recv',
@@ -81,8 +95,11 @@ def format_size(num_bytes):
     return "{:5.1f}".format(num_bytes*1.0/1024**2) + " MiB"
 
 
-def main():
-    for ti in monitor_traffic(0.1, 30):
+def main(args=None):
+    opts = docopt(__doc__, args)
+    fb_url = "{}:{}".format(opts["--host"], opts["--port"])
+
+    for ti in monitor_traffic(0.1, 30, fb_url=fb_url):
         _clear_line(sys.stdout)
         print('R:', format_rate(ti.rate_recv),
               '    S:', format_rate(ti.rate_send),
