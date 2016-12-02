@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding: utf-8
 
 """
 Fritz!Box transfer speed monitor
@@ -44,7 +45,10 @@ def _clear_line(file):
     file.flush()
 
 
-def monitor_traffic(sample_time=1.0, integr_count=1, fb_url='fritz.box:49000'):
+def monitor_traffic(sample_time=1.0,
+                    integr_count=1,
+                    fb_url='fritz.box:49000',
+                    ignore_abs=1):
 
     soap = SOAPProxy(
         proxy='http://{}/igdupnp/control/WANCommonIFC1'.format(fb_url),
@@ -52,19 +56,18 @@ def monitor_traffic(sample_time=1.0, integr_count=1, fb_url='fritz.box:49000'):
         soapaction='urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetAddonInfos',
         noroot=True)
 
-    history = collections.deque(maxlen=integr_count)
+    for i in range(ignore_abs):
+        start_info = _get_raw_traffic_info(soap)
+        start_time = time.time()
+        yield TrafficInfo(0, 0, start_info.rate_recv, start_info.rate_send)
+        time.sleep(sample_time)
 
-    start_info = _get_raw_traffic_info(soap)
-    start_time = time.time()
+    history = collections.deque(maxlen=integr_count)
     history.append((start_time, start_info))
     recv_overflows = 0L
     send_overflows = 0L
 
-    yield TrafficInfo(0, 0, start_info.rate_recv, start_info.rate_send)
-
     while True:
-        time.sleep(sample_time)
-
         comp_time, comp_info = history[0]
         prev_time, prev_info = history[-1]
 
@@ -85,6 +88,7 @@ def monitor_traffic(sample_time=1.0, integr_count=1, fb_url='fritz.box:49000'):
             (cur_info.total_recv - comp_info.total_recv) / dt,
             (cur_info.total_sent - comp_info.total_sent) / dt)
 
+        time.sleep(sample_time)
 
 
 def format_rate(num_bytes):
